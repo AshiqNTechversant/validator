@@ -363,8 +363,39 @@ func (v *Validate) Struct(s interface{}) error {
 	return v.StructCtx(context.Background(), s)
 }
 
-func (v *Validate) StructField(s interface{}) (map[string]interface{}, error) {
-	return v.StructFieldCtx(context.Background(), s)
+func (v *Validate) StructErrors(s interface{}) map[string][]string {
+	val := reflect.ValueOf(s)
+	top := val
+
+	if val.Kind() == reflect.Ptr && !val.IsNil() {
+		val = val.Elem()
+	}
+
+	if val.Kind() != reflect.Struct || val.Type().ConvertibleTo(timeType) {
+		return map[string][]string{"error": {"Invalid input type"}}
+	}
+
+	// good to validate
+	vd := v.pool.Get().(*validate)
+	vd.top = top
+	vd.isPartial = false
+
+	vd.validateStruct(context.Background(), top, val, val.Type(), vd.ns[0:0], vd.actualNs[0:0], nil)
+	errorsMap := make(map[string][]string)
+
+	for _, err := range vd.errs {
+		if fieldError, ok := err.(FieldError); ok {
+			fieldName := fieldError.Field()
+			errorMsg := fieldError.Error()
+			if _, ok := errorsMap[fieldName]; !ok {
+				errorsMap[fieldName] = []string{}
+			}
+			errorsMap[fieldName] = append(errorsMap[fieldName], errorMsg)
+		}
+	}
+
+	v.pool.Put(vd)
+	return errorsMap
 }
 
 // StructCtx validates a structs exposed fields, and automatically validates nested structs, unless otherwise specified
@@ -373,31 +404,6 @@ func (v *Validate) StructField(s interface{}) (map[string]interface{}, error) {
 // It returns InvalidValidationError for bad values passed in and nil or ValidationErrors as error otherwise.
 // You will need to assert the error if it's not nil eg. err.(validator.ValidationErrors) to access the array of errors.
 
-func (v *Validate) StructFieldCtx(ctx context.Context, s interface{}) (valerr map[string]interface{}, err1 error) {
-
-	val := reflect.ValueOf(s)
-	top := val
-
-	if val.Kind() == reflect.Ptr && !val.IsNil() {
-		val = val.Elem()
-	}
-	if val.Kind() != reflect.Struct || val.Type().ConvertibleTo(timeType) {
-		return nil, &InvalidValidationError{Type: reflect.TypeOf(s)}
-	}
-	// good to validate
-	vd := v.pool.Get().(*validate)
-	vd.top = top
-	vd.isPartial = false
-
-	vd.validateStruct(ctx, top, val, val.Type(), vd.ns[0:0], vd.actualNs[0:0], nil)
-	if len(vd.errs) > 0 {
-		err1 = vd.errs
-		vd.errs = nil
-		fmt.Println("--------------->", err1)
-	}
-	v.pool.Put(vd)
-	return
-}
 func (v *Validate) StructCtx(ctx context.Context, s interface{}) (err error) {
 
 	val := reflect.ValueOf(s)
