@@ -363,7 +363,7 @@ func (v *Validate) Struct(s interface{}) error {
 	return v.StructCtx(context.Background(), s)
 }
 
-func (v *Validate) StructErrors(s interface{}) map[string][]string {
+func (v *Validate) StructErrors(s interface{}) map[string][]interface{} {
 	val := reflect.ValueOf(s)
 	top := val
 
@@ -372,7 +372,7 @@ func (v *Validate) StructErrors(s interface{}) map[string][]string {
 	}
 
 	if val.Kind() != reflect.Struct || val.Type().ConvertibleTo(timeType) {
-		return map[string][]string{"error": {"Invalid input type"}}
+		return map[string][]interface{}{"error": {"Invalid input type"}}
 	}
 
 	// good to validate
@@ -381,16 +381,17 @@ func (v *Validate) StructErrors(s interface{}) map[string][]string {
 	vd.isPartial = false
 
 	vd.validateStruct(context.Background(), top, val, val.Type(), vd.ns[0:0], vd.actualNs[0:0], nil)
-	errorsMap := make(map[string][]string)
+	errorsMap := make(map[string][]interface{})
 
 	for _, err := range vd.errs {
 		if fieldError, ok := err.(FieldError); ok {
 			fieldName := fieldError.Field()
-			errorMsg := fieldError.Error()
+			//errorMsg := fieldError.Error()
+
 			if _, ok := errorsMap[fieldName]; !ok {
-				errorsMap[fieldName] = []string{}
+				errorsMap[fieldName] = []interface{}{}
 			}
-			errorsMap[fieldName] = append(errorsMap[fieldName], errorMsg)
+			errorsMap[fieldName] = append(errorsMap[fieldName], err)
 		}
 	}
 
