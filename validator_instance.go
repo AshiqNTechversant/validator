@@ -363,42 +363,6 @@ func (v *Validate) Struct(s interface{}) error {
 	return v.StructCtx(context.Background(), s)
 }
 
-func (v *Validate) StructErrors(s interface{}) map[string][]interface{} {
-	val := reflect.ValueOf(s)
-	top := val
-
-	if val.Kind() == reflect.Ptr && !val.IsNil() {
-		val = val.Elem()
-	}
-
-	if val.Kind() != reflect.Struct || val.Type().ConvertibleTo(timeType) {
-		return map[string][]interface{}{"error": {"Invalid input type"}}
-	}
-
-	// good to validate
-	vd := v.pool.Get().(*validate)
-	vd.top = top
-	vd.isPartial = false
-
-	vd.validateStruct(context.Background(), top, val, val.Type(), vd.ns[0:0], vd.actualNs[0:0], nil)
-	errorsMap := make(map[string][]interface{})
-
-	for _, err := range vd.errs {
-		if fieldError, ok := err.(FieldError); ok {
-			fieldName := fieldError.Field()
-			//errorMsg := fieldError.Error()
-
-			if _, ok := errorsMap[fieldName]; !ok {
-				errorsMap[fieldName] = []interface{}{}
-			}
-			errorsMap[fieldName] = append(errorsMap[fieldName], err)
-		}
-	}
-
-	v.pool.Put(vd)
-	return errorsMap
-}
-
 // StructCtx validates a structs exposed fields, and automatically validates nested structs, unless otherwise specified
 // and also allows passing of context.Context for contextual validation information.
 //
@@ -679,7 +643,7 @@ func (v *Validate) VarCtx(ctx context.Context, field interface{}, tag string) (e
 	vd := v.pool.Get().(*validate)
 	vd.top = val
 	vd.isPartial = false
-	vd.traverseAllField(ctx, val, val, vd.ns[0:0], vd.actualNs[0:0], defaultCField, ctag)
+	vd.traverseField(ctx, val, val, vd.ns[0:0], vd.actualNs[0:0], defaultCField, ctag)
 
 	if len(vd.errs) > 0 {
 		err = vd.errs
