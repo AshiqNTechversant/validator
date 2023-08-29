@@ -679,7 +679,7 @@ func (v *Validate) VarCtx(ctx context.Context, field interface{}, tag string) (e
 	vd := v.pool.Get().(*validate)
 	vd.top = val
 	vd.isPartial = false
-	vd.traverseField(ctx, val, val, vd.ns[0:0], vd.actualNs[0:0], defaultCField, ctag)
+	vd.traverseAllField(ctx, val, val, vd.ns[0:0], vd.actualNs[0:0], defaultCField, ctag)
 
 	if len(vd.errs) > 0 {
 		err = vd.errs
